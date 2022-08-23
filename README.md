@@ -8,7 +8,7 @@ This project is a simple exercise of an event bus system. It consists of the fol
 - **Persister Service** - persists events to a mongodb database.
 - **Monitoring Service** - provides a Prometheus metrics endpoint.
 
-The following diagram shows the architecture of the system.
+The following were the design choices I made when developing this project.
 
 - MSB (RabbitMQ and Apache Kafka)
 - Database (MongoDB)
@@ -18,6 +18,7 @@ The following diagram shows the architecture of the system.
 ## Requirements
 
 The following requirements are necessary to run the project:
+
 - Docker with Docker Compose
 
 ## Installation
