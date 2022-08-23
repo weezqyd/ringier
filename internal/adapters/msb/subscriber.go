@@ -56,7 +56,9 @@ func (s *Subscriber) Subscribe(ctx context.Context, queue string, subscriberFunc
 					log.Printf("[consumer] rejecting message because of error :%s", err)
 					//if we encounter a message in our subscriber func we will Nack the message
 					msg.Nack()
+					return
 				}
+				msg.Ack()
 			}(msg)
 		}
 	}
