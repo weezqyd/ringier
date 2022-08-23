@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package persister;
+
+import "messages.proto";
+
+option go_package = "./persister";
+
+service PersistService {
+  rpc Save(common.EventRequest) returns (common.EventResponse) {}
+}

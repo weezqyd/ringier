@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package common;
+
+import "google/protobuf/any.proto";
+
+option go_package = "./messages";
+
+message Destination {
+  string to = 1;
+  repeated string endpoints = 2;
+}
+
+message EventRequest {
+  string request_id = 1;
+  string event = 2;
+  string route = 3;
+  string from = 4;
+  repeated Destination to = 5;
+  string reference = 6;
+  string created_at = 7;
+  map<string, google.protobuf.Any> payload = 8;
+}
+
+message EventResponse {
+  bool success = 1;
+  string request_id = 2;
+  repeated string errors = 3;
+}

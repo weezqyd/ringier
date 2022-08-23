@@ -1,0 +1,98 @@
+version: "3.8"
+services:
+  receiver:
+    ports:
+      - "9000:9000"
+    build:
+      context: .
+      dockerfile: "cmd/receiver/Dockerfile"
+    depends_on:
+      - zookeeper
+      - kafka
+      - rabbitmq
+    networks:
+      - ringier_dev
+
+  consumer:
+    ports:
+      - "9001:9001"
+    build:
+      context: .
+      dockerfile: "cmd/consumer/Dockerfile"
+    depends_on:
+      - zookeeper
+      - kafka
+      - rabbitmq
+      - persister
+      - dispatcher
+    networks:
+      - ringier_dev
+
+  dispatcher:
+    build:
+      context: .
+      dockerfile: "cmd/dispatcher/Dockerfile"
+    networks:
+      - ringier_dev
+
+  persister:
+    build:
+      context: .
+      dockerfile: "cmd/persister/Dockerfile"
+    depends_on:
+      - zookeeper
+      - kafka
+      - rabbitmq
+      - mongodb
+    networks:
+      - ringier_dev
+
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    networks:
+      - ringier_dev
+
+  kafka:
+    image: bitnami/kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    networks:
+      - ringier_dev
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    networks:
+      - ringier_dev
+
+  mongodb:
+    image: mongo:latest
+    container_name: 'mongodb'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: secret
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - ringier_dev
+volumes:
+  mongodb_data:
+
+networks:
+  ringier_dev:
+    driver: bridge

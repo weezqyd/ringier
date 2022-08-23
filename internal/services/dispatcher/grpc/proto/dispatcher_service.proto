@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package dispatcher;
+
+import "messages.proto";
+
+option go_package = "./dispatcher";
+
+service DispatcherService {
+  rpc Dispatch(common.EventRequest) returns (common.EventResponse) {}
+}
