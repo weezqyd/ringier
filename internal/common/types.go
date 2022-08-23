@@ -5,8 +5,8 @@ type Destination struct {
 	Endpoints []string `json:"endpoints" validate:"required,dive,uri"`
 }
 type EventRequest struct {
-	Event     string                 `json:"event" validate:"required"`
-	Route     string                 `json:"route" validate:"required"`
+	Event     string                 `json:"event" validate:"required,oneof=UserCreated UserUpdated UserDeleted"`
+	Route     string                 `json:"route" validate:"required,oneof=general api"`
 	From      string                 `json:"from" validate:"required,uuid4"`
 	To        []Destination          `json:"to" validate:"required,dive"`
 	Reference string                 `json:"reference" validate:"required"`
