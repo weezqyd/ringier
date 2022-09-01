@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package monitoring;
+
+import "messages.proto";
+
+option go_package = "./pb";
+
+service MonitoringService {
+  rpc Report(monitoring.TelemetryRequest) returns (monitoring.TelemetryResponse);
+}

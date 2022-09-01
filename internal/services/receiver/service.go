@@ -2,10 +2,12 @@ package receiver
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/weezqyd/ringier/internal/adapters/msb"
 	"github.com/weezqyd/ringier/internal/common"
 	"log"
@@ -13,9 +15,10 @@ import (
 	"strconv"
 )
 
-type Receiver struct {
+type Service struct {
 	publisher *msb.Publisher
 	config    *ServiceConfig
+	metrics   *Metrics
 }
 type ServiceConfig struct {
 	RabbitMQURI  string
@@ -24,43 +27,80 @@ type ServiceConfig struct {
 	Topic        string
 }
 
+type Metrics struct {
+	Latency       *prometheus.HistogramVec
+	TotalRequests *prometheus.CounterVec
+}
+
 // use a single instance of Validate, it caches struct info
 var validate *validator.Validate
 
-func NewReceiverService(config *ServiceConfig) (*Receiver, error) {
-	receiver := &Receiver{}
-	receiver.config = config
-	publisher, err := msb.NewPublisher(
-		msb.WithRabbitPublisher(config.RabbitMQURI),
-		msb.WithKafkaPublisher(config.KafkaBrokers),
-		msb.WithTopic(config.Topic),
-	)
-	if err != nil {
-		return nil, err
-	}
-	receiver.publisher = publisher
+type ServiceOption func(service *Service) error
 
-	return receiver, nil
+// NewService creates a new receiver Service instance.
+func NewService(opts ...ServiceOption) (*Service, error) {
+	service := &Service{}
+	for _, fn := range opts {
+		if err := fn(service); err != nil {
+			return nil, err
+		}
+	}
+
+	return service, nil
 }
 
-func (r Receiver) registerRoutes(app *gin.Engine) {
+func WithPublisher() ServiceOption {
+	return func(service *Service) error {
+		publisher, err := msb.NewPublisher(
+			msb.WithRabbitPublisher(service.config.RabbitMQURI),
+			msb.WithKafkaPublisher(service.config.KafkaBrokers),
+			msb.WithTopic(service.config.Topic),
+		)
+		if err != nil {
+			return err
+		}
+		service.publisher = publisher
+		return nil
+	}
+}
+
+func WithConfig(config *ServiceConfig) ServiceOption {
+	return func(service *Service) error {
+		service.config = config
+		return nil
+	}
+}
+
+func WithMetrics(metrics *Metrics) ServiceOption {
+	return func(s *Service) error {
+		if metrics.Latency == nil || metrics.TotalRequests == nil {
+			return fmt.Errorf("missing metrics collectors")
+		}
+		s.metrics = metrics
+		return nil
+	}
+}
+
+func (r *Service) registerRoutes(app *gin.Engine) {
 	app.Group("/api/v1").
 		POST("/events", r.publishEvents)
 }
 
-func (r Receiver) publishEvents(ctx *gin.Context) {
+func (r *Service) publishEvents(ctx *gin.Context) {
 	request := common.EventRequest{}
-	body, err := ctx.GetRawData()
+	status := "failed"
+	err := ctx.BindJSON(&request)
 	if err != nil {
 		respondError(ctx, []string{err.Error()}, http.StatusBadRequest)
 		return
 	}
-	if err = json.Unmarshal(body, &request); err != nil {
-		respondError(ctx, []string{err.Error()}, http.StatusBadRequest)
-		return
-	}
-	log.Println(request)
-
+	defer r.metrics.TotalRequests.With(prometheus.Labels{"event": request.Event, "code": status}).Inc()
+	timer := prometheus.NewTimer(r.metrics.Latency.With(
+		prometheus.Labels{
+			"event": request.Event,
+		}),
+	)
+	defer timer.ObserveDuration()
 	if err := validate.Struct(request); err != nil {
 		var errors []string
 		for _, msg := range err.(validator.ValidationErrors) {
@@ -83,6 +123,7 @@ func (r Receiver) publishEvents(ctx *gin.Context) {
 		respondError(ctx, []string{err.Error()}, http.StatusBadRequest)
 		return
 	}
+	status = "success"
 	ctx.JSON(http.StatusOK, map[string]interface{}{
 		"success":    true,
 		"request_id": event.RequestId,
@@ -100,7 +141,7 @@ func respondError(ctx *gin.Context, errors []string, status int) {
 	ctx.Header("Content-Type", "application/json")
 }
 
-func (r Receiver) Start(app *gin.Engine) {
+func (r *Service) Start(app *gin.Engine) {
 	validate = validator.New()
 	r.registerRoutes(app)
 	log.Fatal(app.Run(":" + strconv.Itoa(int(r.config.ListenPort))))

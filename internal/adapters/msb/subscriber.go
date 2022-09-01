@@ -51,10 +51,10 @@ func (s *Subscriber) Subscribe(ctx context.Context, queue string, subscriberFunc
 
 		case msg := <-d:
 			go func(msg *message.Message) {
-				log.Printf("[consumer] new message => %s", msg.Payload)
+				log.Printf("[consumer] received message => %s", msg.Payload)
 				if err := subscriberFunc(msg); err != nil {
 					log.Printf("[consumer] rejecting message because of error :%s", err)
-					//if we encounter a message in our subscriber func we will Nack the message
+					//if we encounter an error in our subscriber func we will Nack the message
 					msg.Nack()
 					return
 				}

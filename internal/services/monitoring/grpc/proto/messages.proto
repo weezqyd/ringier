@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package monitoring;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "./pb";
+
+enum STATUS {
+  OK = 0;
+  ERROR = 1;
+}
+
+message TelemetryRequest {
+  enum SERVICE_NAME {
+    Dispatcher = 0;
+    Persister = 1;
+    Receiver = 2;
+    Consumer = 3;
+  }
+  string service = 1;
+  STATUS status = 2;
+  SERVICE_NAME event = 3;
+  optional google.protobuf.Timestamp duration = 4;
+}
+
+message TelemetryResponse {
+  STATUS status = 1;
+}
