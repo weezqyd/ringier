@@ -33,6 +33,5 @@ func (s *Service) Run(port string) {
 }
 
 func (s *Service) Report(context.Context, *pb.TelemetryRequest) (*pb.TelemetryResponse, error) {
-
 	return nil, status.Errorf(codes.Unimplemented, "method Report not implemented")
 }

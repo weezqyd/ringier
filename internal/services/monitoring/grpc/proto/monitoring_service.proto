@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package monitoring;
 
-import "messages.proto";
+import "monitoring.messages.proto";
 
 option go_package = "./pb";
 
